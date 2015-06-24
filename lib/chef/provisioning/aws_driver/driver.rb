@@ -604,6 +604,10 @@ EOD
       @rds ||= AWS::RDS.new(config: aws_config)
     end
 
+    def route53
+      @route53 ||= AWS::Route53.new(config: aws_config)
+    end
+
     def s3
       @s3 ||= AWS::S3.new(config: aws_config)
     end
