@@ -45,15 +45,23 @@ end
 # require 'retryable'
 
 class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSProvider
-  def create_aws_object
-    converge_by "create new #{new_resource}" do
-      new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
-    end
-  end
+  # def create_aws_object
+  #   converge_by "create new #{new_resource}" do
+  #     puts "\nCREATE"
+  #     new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
+  #   end
+  # end
 
-  def update_aws_object(volume)
-  end
+  # def update_aws_object(hosted_zone)
+  #   puts "\nUPDATE"
+  # end
 
-  def destroy_aws_object(volume)
-  end
+  # def destroy_aws_object(hosted_zone)
+  #   puts "\nDESTROY"
+  #   # require 'pry'; binding.pry
+  #   converge_by "delete Route53 zone #{hosted_zone}" do
+  #     # require 'pry'; binding.pry
+  #     new_resource.driver.route53.hosted_zone.delete
+  #   end
+  # end
 end
