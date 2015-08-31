@@ -3,15 +3,18 @@ require 'chef/resource/aws_subnet'
 require 'chef/resource/aws_eip_address'
 
 class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSResourceWithEntry
-  aws_sdk_type AWS::Route53::HostedZone, load_provider: false
 
-  # The name of the domain. For public hosted zones, this is the name that you have registered with your DNS registrar.
-  # For information about how to specify characters other than a-z, 0-9, and - (hyphen) and how to specify internationalized domain names, see DNS Domain Name Format.
-  # Type: String
+  # provides :aws_route53_hosted_zone
+  # :id is not actually :name, it's the ID provided by AWS
+  aws_sdk_type AWS::Route53::HostedZone, load_provider: false, id: :aws_route_53_zone_id
+
+  # name of the domain.
   attribute :name, kind_of: String
 
   # The comment included in the CreateHostedZoneRequest element. String <= 256 characters.
   attribute :comment, kind_of: String
+
+  attribute :aws_route_53_zone_id, kind_of: String, aws_id_attribute: true
 
   # If you want to associate a reusable delegation set with this hosted zone, the ID that Amazon Route 53
   # assigned to the reusable delegation set when you created it. For more information about reusable
@@ -28,10 +31,6 @@ class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSR
   # 3. an AWS::EC2::VPC.
   attribute :vpcs
 
-  attribute :hosted_zone_id, kind_of: String, aws_id_attribute: true, lazy_default: proc {
-    name =~ /^[a-zA-Z]+$/ ? name : nil
-  }
-
   def aws_object
     driver, id = get_driver_and_id
     result = driver.route53.hosted_zones[id] if id
@@ -45,23 +44,26 @@ end
 # require 'retryable'
 
 class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSProvider
-  # def create_aws_object
-  #   converge_by "create new #{new_resource}" do
-  #     puts "\nCREATE"
-  #     new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
-  #   end
-  # end
+
+  def create_aws_object
+    converge_by "create new #{new_resource}" do
+      zone = new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
+      new_resource.aws_route_53_zone_id(zone.id)
+      puts "Hosted zone ID: #{zone.id}"
+      new_resource
+    end
+  end
 
   # def update_aws_object(hosted_zone)
   #   puts "\nUPDATE"
   # end
 
-  # def destroy_aws_object(hosted_zone)
-  #   puts "\nDESTROY"
-  #   # require 'pry'; binding.pry
-  #   converge_by "delete Route53 zone #{hosted_zone}" do
-  #     # require 'pry'; binding.pry
-  #     new_resource.driver.route53.hosted_zone.delete
-  #   end
-  # end
+  def destroy_aws_object(hosted_zone)
+    puts "\nDESTROY"
+    # require 'pry'; binding.pry
+    converge_by "delete Route53 zone #{hosted_zone}" do
+      # require 'pry'; binding.pry
+      new_resource.driver.route53.hosted_zone.delete
+    end
+  end
 end
