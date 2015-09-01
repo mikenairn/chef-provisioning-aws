@@ -109,6 +109,12 @@ class AWSResource < Chef::Provisioning::AWSDriver::SuperLWRP
       resource = value
     else
       resource = new(value, run_context)
+
+      # populate AWS ID for resources like AwsRoute53HostedZone that don't have lazy-auto assignment.
+      if resource.public_send(resource.class.aws_id_attribute).nil?
+        resource.public_send(resource.class.aws_id_attribute, value)
+      end
+
       resource.driver driver if driver
       resource.managed_entry_store managed_entry_store if managed_entry_store
     end
