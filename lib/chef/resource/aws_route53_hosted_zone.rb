@@ -4,12 +4,16 @@ require 'chef/resource/aws_eip_address'
 
 class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSResourceWithEntry
 
-  # provides :aws_route53_hosted_zone
   # :id is not actually :name, it's the ID provided by AWS
-  aws_sdk_type AWS::Route53::HostedZone, load_provider: false, id: :aws_route_53_zone_id
+  # aws_sdk_type AWS::Route53::HostedZone, load_provider: false, id: :aws_route_53_zone_id
+  aws_sdk_type AWS::Route53::HostedZone, load_provider: false #, id: :id
+
+  # silence deprecations--since provisioning figures out the resource name itself, it seems like it could do
+  # this, too...
+  resource_name :aws_route53_hosted_zone
 
   # name of the domain.
-  attribute :name, kind_of: String
+  attribute :name, kind_of: String, name_attribute: true
 
   # The comment included in the CreateHostedZoneRequest element. String <= 256 characters.
   attribute :comment, kind_of: String
@@ -38,32 +42,26 @@ class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSR
   end
 end
 
-# require 'chef/provisioning/aws_driver/aws_provider'
-# require 'cheffish'
-# require 'date'
-# require 'retryable'
-
 class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSProvider
+  provides :aws_route53_hosted_zone
 
   def create_aws_object
     converge_by "create new #{new_resource}" do
       zone = new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
       new_resource.aws_route_53_zone_id(zone.id)
-      puts "Hosted zone ID: #{zone.id}"
-      new_resource
+      puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
+      zone
     end
   end
 
-  # def update_aws_object(hosted_zone)
-  #   puts "\nUPDATE"
-  # end
+  def update_aws_object(hosted_zone)
+    puts "\nUPDATE"
+  end
 
   def destroy_aws_object(hosted_zone)
     puts "\nDESTROY"
-    # require 'pry'; binding.pry
-    converge_by "delete Route53 zone #{hosted_zone}" do
-      # require 'pry'; binding.pry
-      new_resource.driver.route53.hosted_zone.delete
+    converge_by "delete Route53 zone #{new_resource}" do
+      result = new_resource.driver.route53.hosted_zone[new_resource.aws_route_53_zone_id].delete
     end
   end
 end
