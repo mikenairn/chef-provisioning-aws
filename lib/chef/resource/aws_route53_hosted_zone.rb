@@ -63,7 +63,7 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
     converge_by "delete Route53 zone #{new_resource}" do
       # since the zone ID is in the data bag, it seems like it should get populated into new_resource, but
       # that's not what happens.
-      result = new_resource.driver.route53.hosted_zones[new_resource.aws_object.id].delete
+      result = new_resource.driver.route53.hosted_zones[hosted_zone.id].delete
     end
   end
 end
