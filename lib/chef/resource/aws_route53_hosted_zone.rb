@@ -46,7 +46,7 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
   provides :aws_route53_hosted_zone
 
   def create_aws_object
-    converge_by "create new #{new_resource}" do
+    converge_by "create new Route 53 zone #{new_resource}" do
       zone = new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
       new_resource.aws_route_53_zone_id(zone.id)
       puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
@@ -55,13 +55,15 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
   end
 
   def update_aws_object(hosted_zone)
-    puts "\nUPDATE"
+    converge_by "update Route 53 zone #{new_resource}" do
+    end
   end
 
   def destroy_aws_object(hosted_zone)
-    puts "\nDESTROY"
     converge_by "delete Route53 zone #{new_resource}" do
-      result = new_resource.driver.route53.hosted_zone[new_resource.aws_route_53_zone_id].delete
+      # since the zone ID is in the data bag, it seems like it should get populated into new_resource, but
+      # that's not what happens.
+      result = new_resource.driver.route53.hosted_zones[new_resource.aws_object.id].delete
     end
   end
 end
