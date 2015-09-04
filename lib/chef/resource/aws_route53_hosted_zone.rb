@@ -69,12 +69,6 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
         },
         caller_reference: "chef-provisioning-aws-#{SecureRandom.uuid.upcase}",  # required
       }
-      # zone = begin
-      #   new_resource.driver.route53_client.create_hosted_zone(values).hosted_zone
-      #   puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
-      # rescue Aws::Route53::Errors::HostedZoneAlreadyExists
-      #   new_resource.aws_object
-      # end
 
       zone = new_resource.driver.route53_client.create_hosted_zone(values).hosted_zone
       puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
@@ -84,15 +78,15 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
   end
 
   def update_aws_object(hosted_zone)
-    converge_by "update Route 53 zone #{new_resource}" do
-      false
+    if new_resource.comment != hosted_zone.config.comment
+      converge_by "update Route 53 zone #{new_resource}" do
+        new_resource.driver.route53_client.update_hosted_zone_comment(id: hosted_zone.id, comment: new_resource.comment)
+      end
     end
   end
 
   def destroy_aws_object(hosted_zone)
     converge_by "delete Route53 zone #{new_resource}" do
-      # since the zone ID is in the data bag, it seems like it should get populated into new_resource, but
-      # that's not what happens.
       result = new_resource.driver.route53_client.delete_hosted_zone(id: hosted_zone.id)
     end
   end
