@@ -2,11 +2,12 @@ require 'chef/provisioning/aws_driver/aws_resource'
 require 'chef/resource/aws_subnet'
 require 'chef/resource/aws_eip_address'
 
+require 'securerandom'
+
 class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSResourceWithEntry
 
   # :id is not actually :name, it's the ID provided by AWS
-  # aws_sdk_type AWS::Route53::HostedZone, load_provider: false, id: :aws_route_53_zone_id
-  aws_sdk_type AWS::Route53::HostedZone, load_provider: false #, id: :id
+  aws_sdk_type ::Aws::Route53::Types::HostedZone, load_provider: false
 
   # silence deprecations--since provisioning figures out the resource name itself, it seems like it could do
   # this, too...
@@ -37,25 +38,54 @@ class Chef::Resource::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSR
 
   def aws_object
     driver, id = get_driver_and_id
-    result = driver.route53.hosted_zones[id] if id
-    result && result.exists? ? result : nil
+    result = driver.route53_client.get_hosted_zone(id: id).hosted_zone if id rescue nil
+    result || nil
   end
 end
 
 class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSProvider
   provides :aws_route53_hosted_zone
 
+  # resp = client.create_hosted_zone({
+  #   name: "DNSName", # required
+  #   vpc: {
+  #     vpc_region: "us-east-1", # accepts us-east-1, us-west-1, us-west-2, eu-west-1, eu-central-1, ap-southeast-1, ap-southeast-2, ap-northeast-1, sa-east-1, cn-north-1
+  #     vpc_id: "VPCId",
+  #   },
+  #   caller_reference: "Nonce", # required
+  #   hosted_zone_config: {
+  #     comment: "ResourceDescription",
+  #     private_zone: true,
+  #   },
+  #   delegation_set_id: "ResourceId",
+  # })
   def create_aws_object
+
     converge_by "create new Route 53 zone #{new_resource}" do
-      zone = new_resource.driver.route53.hosted_zones.create(new_resource.name) #, comment: new_resource.comment)
-      new_resource.aws_route_53_zone_id(zone.id)
+      values = {
+        name: new_resource.name,
+        hosted_zone_config: {
+          comment: new_resource.comment,
+        },
+        caller_reference: "chef-provisioning-aws-#{SecureRandom.uuid.upcase}",  # required
+      }
+      # zone = begin
+      #   new_resource.driver.route53_client.create_hosted_zone(values).hosted_zone
+      #   puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
+      # rescue Aws::Route53::Errors::HostedZoneAlreadyExists
+      #   new_resource.aws_object
+      # end
+
+      zone = new_resource.driver.route53_client.create_hosted_zone(values).hosted_zone
       puts "\nHosted zone ID (#{new_resource.name}): #{zone.id}"
+      new_resource.aws_route_53_zone_id(zone.id)
       zone
     end
   end
 
   def update_aws_object(hosted_zone)
     converge_by "update Route 53 zone #{new_resource}" do
+      false
     end
   end
 
@@ -63,7 +93,7 @@ class Chef::Provider::AwsRoute53HostedZone < Chef::Provisioning::AWSDriver::AWSP
     converge_by "delete Route53 zone #{new_resource}" do
       # since the zone ID is in the data bag, it seems like it should get populated into new_resource, but
       # that's not what happens.
-      result = new_resource.driver.route53.hosted_zones[hosted_zone.id].delete
+      result = new_resource.driver.route53_client.delete_hosted_zone(id: hosted_zone.id)
     end
   end
 end
